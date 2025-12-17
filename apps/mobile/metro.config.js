@@ -86,15 +86,14 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
   }
 };
 
-const cacheDir = path.join(__dirname, 'caches');
+const cacheDir = path.join(__dirname, '.metro-cache');
 
 config.cacheStores = () => [
   new FileStore({
-    root: path.join(cacheDir, '.metro-cache'),
+    root: cacheDir,
   }),
 ];
 config.resetCache = false;
-config.fileMapCacheDirectory = cacheDir;
 config.reporter = {
   ...config.reporter,
   update: (event) => {
