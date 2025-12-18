@@ -49,15 +49,16 @@ async function registerRoutes() {
       if (typeof handlerExport === 'function') {
         const parts = getHonoPathFromKey(key);
         const honoPath = `/${parts.map(({ pattern }) => pattern).join('/')}`;
-        const handler: Handler = async (c) => {
-          const params = c.req.param();
-          // In dev, re-import for HMR
-          if (import.meta.env.DEV) {
-            const updated = await import(/* @vite-ignore */ `${key}?update=${Date.now()}`);
-            return await updated[method](c.req.raw, { params });
-          }
-          return await (handlerExport as Function)(c.req.raw, { params });
-        };
+      const handler: Handler = async (c) => {
+        const params = c.req.param();
+        // In dev, re-import for HMR
+        if (import.meta.env.DEV) {
+          const specifier = `${key}`.replace(/ /g, '%20');
+          const updated = await import(/* @vite-ignore */ `${specifier}?update=${Date.now()}`);
+          return await updated[method](c.req.raw, { params });
+        }
+        return await (handlerExport as Function)(c.req.raw, { params });
+      };
         const methodLowercase = method.toLowerCase();
         switch (methodLowercase) {
           case 'get':

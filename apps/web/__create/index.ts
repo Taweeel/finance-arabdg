@@ -52,10 +52,13 @@ app.use('*', (c, next) => {
 app.use(contextStorage());
 
 app.onError((err, c) => {
-  if (c.req.method !== 'GET') {
+  const isApiRoute = c.req.path.startsWith('/api');
+  if (isApiRoute || c.req.method !== 'GET') {
+    const requestId = c.get('requestId');
     return c.json(
       {
         error: 'An error occurred in your app',
+        requestId,
         details: serializeError(err),
       },
       500
@@ -88,7 +91,9 @@ if (process.env.AUTH_SECRET) {
   app.use(
     '*',
     initAuthConfig((c) => ({
-      secret: c.env.AUTH_SECRET,
+      secret: process.env.AUTH_SECRET,
+      url: process.env.AUTH_URL,
+      trustHost: true,
       pages: {
         signIn: '/account/signin',
         signOut: '/account/logout',
@@ -105,26 +110,30 @@ if (process.env.AUTH_SECRET) {
           return session;
         },
       },
-      cookies: {
-        csrfToken: {
-          options: {
-            secure: true,
-            sameSite: 'none',
+      cookies: (() => {
+        const secure = typeof process.env.AUTH_URL === 'string' && process.env.AUTH_URL.startsWith('https');
+        const sameSite: 'none' | 'lax' = secure ? 'none' : 'lax';
+        return {
+          csrfToken: {
+            options: {
+              secure,
+              sameSite,
+            },
           },
-        },
-        sessionToken: {
-          options: {
-            secure: true,
-            sameSite: 'none',
+          sessionToken: {
+            options: {
+              secure,
+              sameSite,
+            },
           },
-        },
-        callbackUrl: {
-          options: {
-            secure: true,
-            sameSite: 'none',
+          callbackUrl: {
+            options: {
+              secure,
+              sameSite,
+            },
           },
-        },
-      },
+        };
+      })(),
       providers: [
         Credentials({
           id: 'credentials-signin',

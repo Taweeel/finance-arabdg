@@ -3,26 +3,43 @@ import sql from '@/app/api/utils/sql';
 import { auth } from '@/auth';
 
 export async function GET(request) {
-  // Existing logic retained (optional): may list clients
   try {
-    const session = await auth();
+    const session = await auth?.();
     if (!session) {
       return Response.json({ message: 'Unauthorized' }, { status: 401 });
     }
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') ?? '';
-    let query = `SELECT * FROM company_clients WHERE active = true`;
-    const values = [];
+    
+    // Use template literals for proper interpolation
+    let baseQuery = sql`SELECT * FROM company_clients WHERE active = true`;
+    let finalQuery = baseQuery;
+    let values = [];
+    
     if (search) {
-      query += ` AND (LOWER(name) LIKE LOWER($1) OR LOWER(legal_name) LIKE LOWER($1) OR LOWER(contact_person_email) LIKE LOWER($1))`;
-      values.push(`%${search}%`);
+      const searchPattern = `%${search}%`;
+      finalQuery = sql`SELECT * FROM company_clients WHERE active = true AND (
+        LOWER(name) LIKE LOWER(${searchPattern}) OR 
+        LOWER(legal_name) LIKE LOWER(${searchPattern}) OR 
+        LOWER(contact_person_email) LIKE LOWER(${searchPattern})
+      ) ORDER BY created_at DESC`;
+    } else {
+      finalQuery = sql`SELECT * FROM company_clients WHERE active = true ORDER BY created_at DESC`;
     }
-    query += ` ORDER BY created_at DESC`;
-    const clients = await sql(query, values);
+    
+    const clients = await finalQuery;
     return Response.json({ clients });
   } catch (err) {
     console.error('GET /api/clients error', err);
-    return Response.json({ error: 'Internal Server Error' }, { status: 500 });
+    // Include error details in dev
+    const errorResponse = { 
+      error: 'Internal Server Error',
+      ...(process.env.NODE_ENV === 'development' && { 
+        details: err.message,
+        stack: err.stack 
+      })
+    };
+    return Response.json(errorResponse, { status: 500 });
   }
 }
 
